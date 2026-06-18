@@ -2,11 +2,11 @@ from flask import Flask, request, jsonify
 import torch
 import torch.nn as nn
 import numpy as np
-import joblib
 
 class HousingRegressionModel(nn.Module):
     def __init__(self):
         super(HousingRegressionModel, self).__init__()
+
         self.model = nn.Sequential(
             nn.Linear(8, 64),
             nn.ReLU(),
@@ -20,7 +20,15 @@ class HousingRegressionModel(nn.Module):
 
 app = Flask(__name__)
 
-model = joblib.load("california_housing_regression_model.pkl")
+model = HousingRegressionModel()
+
+model.load_state_dict(
+    torch.load(
+        "california_housing_regression_model.pth",
+        map_location=torch.device("cpu")
+    )
+)
+
 model.eval()
 
 @app.route("/")
@@ -29,6 +37,7 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
+
     data = request.get_json()
 
     features = np.array([[
@@ -45,10 +54,11 @@ def predict():
     features_tensor = torch.tensor(features)
 
     with torch.no_grad():
-        prediction = model(features_tensor).item()
+        prediction = model(features_tensor)
 
     return jsonify({
-        "predicted_house_value": prediction
+        "predicted_house_value":
+        float(prediction.item())
     })
 
 if __name__ == "__main__":
